@@ -61,7 +61,7 @@ void loop()
       rightValue /= NUMBER_OF_SAMPLES;
       brakeValue /= NUMBER_OF_SAMPLES;
 
-      brakeValue = 4095 - brakeValue; // scale is reversed on brake pedal
+      brakeValue = MAX_POT_READING - brakeValue; // scale is reversed on brake pedal
 
       // adjust for skewed readings from each pedal
       leftValue = adjustPedalThresholds(leftValue, LEFT_LOWER_THRESHOLD, LEFT_UPPER_THRESHOLD);
