@@ -1,6 +1,8 @@
 # Use Logitech G29 as a rudder pedal in flight sims
 
 ## Requirements
+ - Aduino IDE setup for ESP32
+ - BleGamepad library
  - ESP32 microcontroller
  - Some wires
  - breadboard
