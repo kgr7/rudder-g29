@@ -1,14 +1,17 @@
 #include <Arduino.h>
 #include <BleGamepad.h>
 
-const int rightPin = 36;
-const int leftPin = 39;
-const int brakePin = 34;
+// Microcontroller pins. Choose any that has an ADC 
+const int GAS_PIN = 36;
+const int CLUTCH_PIN = 39;
+const int BRAKE_PIN = 34;
 
-const int numberOfSamples = 5;
-const int delayBetweenSamples = 4;
-const int delayBetweenHidReports = 5;
+// Sampling values for smoothing
+const int NUMBER_OF_SAMPLES = 5;
+const int DELAY_BETWEEN_SAMPLES = 4;
+const int DELAY_BETWEEN_HID_REPORTS = 5;
 
+// Hardware thresholds. Test your own pedals and adjust as necessary
 const int MAX_POT_READING = 4095;
 const int LEFT_LOWER_THRESHOLD = 200;
 const int LEFT_UPPER_THRESHOLD = 3500;
@@ -33,30 +36,30 @@ void loop()
 {
     if (bleGamepad.isConnected())
     {
-      int leftValues[numberOfSamples];
-      int rightValues[numberOfSamples];
-      int brakeValues[numberOfSamples];
+      int leftValues[NUMBER_OF_SAMPLES];
+      int rightValues[NUMBER_OF_SAMPLES];
+      int brakeValues[NUMBER_OF_SAMPLES];
 
       int leftValue = 0;
       int rightValue = 0;
       int brakeValue = 0;
 
-      for (int i = 0; i < numberOfSamples; i++)
+      for (int i = 0; i < NUMBER_OF_SAMPLES; i++)
       {
-          leftValues[i] = analogRead(leftPin);
-          rightValues[i] = analogRead(rightPin);
-          brakeValues[i] = analogRead(brakePin);
+          leftValues[i] = analogRead(CLUTCH_PIN);
+          rightValues[i] = analogRead(GAS_PIN);
+          brakeValues[i] = analogRead(BRAKE_PIN);
 
           leftValue += leftValues[i];
           rightValue += rightValues[i];
           brakeValue += brakeValues[i];
 
-          delay(delayBetweenSamples);
+          delay(DELAY_BETWEEN_SAMPLES);
       }
 
-      leftValue /= numberOfSamples;
-      rightValue /= numberOfSamples;
-      brakeValue /= numberOfSamples;
+      leftValue /= NUMBER_OF_SAMPLES;
+      rightValue /= NUMBER_OF_SAMPLES;
+      brakeValue /= NUMBER_OF_SAMPLES;
 
       brakeValue = 4095 - brakeValue; // scale is reversed on brake pedal
 
@@ -78,7 +81,7 @@ void loop()
       bleGamepad.setSlider2(adjustedBrake);
                 
       bleGamepad.sendReport();
-      delay(delayBetweenHidReports);
+      delay(DELAY_BETWEEN_HID_REPORTS);
     }     
 }
 
