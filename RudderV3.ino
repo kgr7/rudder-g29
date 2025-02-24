@@ -9,6 +9,14 @@ const int numberOfSamples = 5;
 const int delayBetweenSamples = 4;
 const int delayBetweenHidReports = 5;
 
+const int MAX_POT_READING = 4095;
+const int LEFT_LOWER_THRESHOLD = 200;
+const int LEFT_UPPER_THRESHOLD = 3500;
+const int RIGHT_LOWER_THRESHOLD = 100;
+const int RIGHT_UPPER_THRESHOLD = 3600;
+const int BRAKE_LOWER_THRESHOLD = 200;
+const int BRAKE_UPPER_THRESHOLD = 2000; // brake pedal is really hard to press all the way
+
 BleGamepad bleGamepad("ESP32 Rudder Pedal", "kgr", 100);
 
 void setup()
@@ -18,21 +26,17 @@ void setup()
     BleGamepadConfiguration bleGamepadConfig;
     bleGamepadConfig.setIncludeSlider1(true);
     bleGamepadConfig.setIncludeSlider2(true);
-    bleGamepad.begin(&bleGamepadConfig); // Creates a gamepad with 128 buttons, 2 hat switches and x, y, z, rZ, rX, rY and 2 sliders (no simulation controls enabled by default)
+    bleGamepad.begin(&bleGamepadConfig);
 }
 
 void loop()
 {
     if (bleGamepad.isConnected())
     {
-      int leftRaw = analogRead(leftPin);
-      int rightRaw = analogRead(rightPin);
-      int brakeRaw = analogRead(brakePin);
-
       int leftValues[numberOfSamples];
       int rightValues[numberOfSamples];
       int brakeValues[numberOfSamples];
-      
+
       int leftValue = 0;
       int rightValue = 0;
       int brakeValue = 0;
@@ -42,6 +46,7 @@ void loop()
           leftValues[i] = analogRead(leftPin);
           rightValues[i] = analogRead(rightPin);
           brakeValues[i] = analogRead(brakePin);
+
           leftValue += leftValues[i];
           rightValue += rightValues[i];
           brakeValue += brakeValues[i];
@@ -49,32 +54,41 @@ void loop()
           delay(delayBetweenSamples);
       }
 
-      leftValue = leftValue / numberOfSamples;
-      rightValue = rightValue / numberOfSamples;
-      brakeValue = brakeValue / numberOfSamples;
+      leftValue /= numberOfSamples;
+      rightValue /= numberOfSamples;
+      brakeValue /= numberOfSamples;
 
-      int adjustedLeft = map(leftValue, 3700, 0, 0, 16383);
-      int adjustedRight = map(rightValue, 3700, 0, 0, 16383);
-      int adjustedBrake = map(brakeValue, 4095, 1700, 0, 32767);
+      brakeValue = 4095 - brakeValue; // scale is reversed on brake pedal
 
-      if (adjustedBrake < 2000) {
-        adjustedBrake = 0;
-      }
+      // adjust for skewed readings from each pedal
+      leftValue = adjustPedalThresholds(leftValue, LEFT_LOWER_THRESHOLD, LEFT_UPPER_THRESHOLD);
+      rightValue = adjustPedalThresholds(rightValue, RIGHT_LOWER_THRESHOLD, RIGHT_UPPER_THRESHOLD);
+      brakeValue = adjustPedalThresholds(brakeValue, BRAKE_LOWER_THRESHOLD, BRAKE_UPPER_THRESHOLD);
 
+      int adjustedLeft = (MAX_POT_READING - leftValue) * 8;
+      int adjustedRight = (MAX_POT_READING - rightValue) * 8;
+      int adjustedBrake = brakeValue * 8;
+
+      debugPedals(leftValue, rightValue, brakeValue);
       int netRudder = calculateRudderPosition(adjustedLeft, adjustedRight);
+
+      debugRudder(netRudder);
 
       bleGamepad.setSlider1(netRudder);
       bleGamepad.setSlider2(adjustedBrake);
-
-      Serial.print("raw BRAKE: ");
-      Serial.println(brakeRaw);
-
-      Serial.print("adjusted BRAKE: ");
-      Serial.println(adjustedBrake);
                 
       bleGamepad.sendReport();
       delay(delayBetweenHidReports);
     }     
+}
+
+int adjustPedalThresholds(int pedal, int minThreshold, int maxThreshold) {
+    if (pedal > maxThreshold) {
+        pedal = MAX_POT_READING;
+    } else if (pedal < minThreshold) {
+        pedal = 0;
+    }
+    return pedal;
 }
 
 int calculateRudderPosition(int left, int right) {
@@ -104,4 +118,20 @@ int calculateRudderPosition(int left, int right) {
   }
 
   return netRudder;
+}
+
+void debugRudder(int rudder) {
+  Serial.print("RUDDER:");
+  Serial.println(rudder);
+}
+
+void debugPedals(int left, int right, int brake) {
+    Serial.print("LEFT:");
+    Serial.print(left);
+    Serial.print(",");
+    Serial.print("RIGHT:");
+    Serial.print(right);
+    Serial.print(",");
+    Serial.print("BRAKE:");
+    Serial.println(brake);
 }
